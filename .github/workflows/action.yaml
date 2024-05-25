@@ -22,4 +22,4 @@ jobs:
           port: 22
           script: |
             echo ${{ steps.date.outputs.time }}
-            docker exec mariadb sh -c mariadb-dump -uroot -p${{ secrets.SQL_PASSWORD }} bdm296810572_db > /data/docker/mariadb/backup/bdm296810572_db/${{ steps.date.outputs.time }}.dump
+            docker exec mariadb sh -c 'mariadb-dump -uroot -p${{ secrets.SQL_PASSWORD }} bdm296810572_db' > /data/docker/mariadb/backup/bdm296810572_db/${{ steps.date.outputs.time }}.dump
