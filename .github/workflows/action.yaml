@@ -27,4 +27,9 @@ jobs:
           port: 22
           script: |
             echo ${{ steps.date.outputs.time }}
-            docker exec mariadb sh -c 'mariadb-dump -uroot -p${{ secrets.SQL_PASSWORD }} bdm296810572_db' > /data/docker/mariadb/backup/bdm296810572_db/${{ steps.date.outputs.time }}.dump
+            DB_LIST=$(docker exec mariadb sh -c "mariadb -uroot -p${{ secrets.SQL_PASSWORD }} -N -e \"SHOW DATABASES;\"" | grep -Ev "^(information_schema|mysql|performance_schema|sys)$")
+            for DB_NAME in $DB_LIST; do
+              mkdir -p "/data/docker/mariadb/backup/${DB_NAME}"
+              docker exec mariadb sh -c "mariadb-dump -uroot -p${{ secrets.SQL_PASSWORD }} ${DB_NAME}" > "/data/docker/mariadb/backup/${DB_NAME}/${{ steps.date.outputs.time }}.dump"
+            done
+            find /data/docker/mariadb/backup -daystart -type f -name "*.dump" -mtime +6 -delete
