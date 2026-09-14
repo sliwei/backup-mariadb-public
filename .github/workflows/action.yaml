@@ -30,5 +30,21 @@ jobs:
             docker exec mariadb sh -c "mariadb -uroot -p${{ secrets.SQL_PASSWORD }} -N -e \"SHOW DATABASES;\"" \
               | tr -d '\r' \
               | grep -Ev "^(information_schema|mysql|performance_schema|sys)$" \
-              | xargs -r -I DB_NAME sh -c 'mkdir -p "/data/docker/mariadb/backup/DB_NAME" && docker exec mariadb sh -c "mariadb-dump -uroot -p${{ secrets.SQL_PASSWORD }} DB_NAME" > "/data/docker/mariadb/backup/DB_NAME/${{ steps.date.outputs.time }}.dump"'
-            find /data/docker/mariadb/backup -daystart -type f -name "*.dump" -mtime +6 -delete
+              | xargs -r -I DB_NAME sh -c '
+                  set -eu
+                  backup_dir="/data/docker/mariadb/backup/DB_NAME"
+                  backup_file="$backup_dir/${{ steps.date.outputs.time }}.dump"
+                  mkdir -p "$backup_dir"
+                  if docker exec mariadb sh -c "mariadb-dump -uroot -p${{ secrets.SQL_PASSWORD }} DB_NAME" > "$backup_file.tmp"; then
+                    mv -- "$backup_file.tmp" "$backup_file"
+                    find "$backup_dir" -maxdepth 1 -type f -name "*.dump" -printf "%f\n" \
+                      | LC_ALL=C sort -r \
+                      | tail -n +4 \
+                      | while IFS= read -r old_backup; do
+                          rm -- "$backup_dir/$old_backup"
+                        done
+                  else
+                    rm -f -- "$backup_file.tmp"
+                    exit 1
+                  fi
+                '
